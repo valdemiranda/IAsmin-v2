@@ -1,0 +1,54 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id
+  username   String?
+  authorized Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  contexts   Context[]
+}
+
+model Model {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  contexts    Context[]
+}
+
+model Context {
+  id        String    @id @default(cuid())
+  userId    String
+  modelId   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+  model     Model     @relation(fields: [modelId], references: [id])
+  messages  Message[]
+}
+
+model Message {
+  id                String    @id @default(cuid())
+  contextId         String
+  content           String
+  role              String    // 'user' or 'assistant'
+  imageUrl          String?   // URL da imagem, se houver
+  replyToId         String?   // ID da mensagem à qual esta é uma resposta
+  telegramMessageId Int?      // ID da mensagem no Telegram
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  context           Context   @relation(fields: [contextId], references: [id])
+  replyTo           Message?  @relation("Replies", fields: [replyToId], references: [id])
+  replies           Message[] @relation("Replies")
+}
