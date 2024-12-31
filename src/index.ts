@@ -1,6 +1,7 @@
 import { TelegramService } from './services/telegram'
 import { commands } from './handlers/commands'
 import { MessageHandler } from './handlers/messages'
+import { initializeDatabase } from './database/initialize'
 
 async function setupBot() {
   try {
@@ -42,6 +43,10 @@ async function setupBot() {
 
 async function main() {
   try {
+    console.log('Inicializando banco de dados...')
+    await initializeDatabase()
+
+    console.log('Configurando bot...')
     await setupBot()
   } catch (error) {
     console.error('Error starting application:', error)
