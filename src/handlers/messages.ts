@@ -1,69 +1,70 @@
-import { Message } from '@prisma/client';
-import { OpenRouterMessage, TelegramMessage } from '../types';
-import { TelegramService } from '../services/telegram';
-import { OpenRouterService } from '../services/openRouter';
-import {
-  ContextRepository,
-  MessageRepository,
-  ModelRepository,
-  UserRepository,
-} from '../repositories';
+import { Message } from '@prisma/client'
+import { OpenRouterMessage, TelegramMessage } from '../types'
+import { TelegramService } from '../services/telegram'
+import { OpenRouterService } from '../services/openRouter'
+import { ContextRepository, MessageRepository, ModelRepository, UserRepository } from '../repositories'
 
 export const MessageHandler = {
   handleMessage: async (msg: TelegramMessage) => {
     try {
+      // Ignora mensagens que são comandos
+      if (msg.text?.startsWith('/')) {
+        return
+      }
+
+      // Ignora mensagens vazias
+      if (!msg.text && !msg.photo) {
+        return
+      }
+
       // Garante que o usuário esteja registrado
-      const userId = msg.from.id.toString();
-      const user = await UserRepository.findOrCreate(userId, msg.from.username);
+      const userId = msg.from.id.toString()
+      const user = await UserRepository.findOrCreate(userId, msg.from.username)
 
       if (!user.authorized) {
         await TelegramService.sendMessage(
           userId,
           'Você ainda não está autorizado a interagir comigo. Use /start para ver seu ID e aguarde a aprovação de um administrador.'
-        );
-        console.log(`Tentativa de interação de usuário não autorizado - ID: ${userId}, Username: ${msg.from.username || 'não informado'}`);
-        return;
+        )
+        console.log(
+          `Tentativa de interação de usuário não autorizado - ID: ${userId}, Username: ${
+            msg.from.username || 'não informado'
+          }`
+        )
+        return
       }
 
       // Verifica se é uma resposta a uma mensagem existente
       if (msg.reply_to_message) {
-        await handleReplyMessage(msg);
-        return;
+        await handleReplyMessage(msg)
+        return
       }
 
       // Cria um novo contexto
-      await handleNewContext(msg);
+      await handleNewContext(msg)
     } catch (error) {
-      console.error('Error handling message:', error);
-      await TelegramService.sendMessage(
-        msg.from.id,
-        'Desculpe, ocorreu um erro ao processar sua mensagem.'
-      );
+      console.error('Error handling message:', error)
+      await TelegramService.sendMessage(msg.from.id, 'Desculpe, ocorreu um erro ao processar sua mensagem.')
     }
-  },
-};
+  }
+}
 
 async function handleReplyMessage(msg: TelegramMessage) {
-  const previousMessage = await MessageRepository.findByTelegramMessageId(
-    msg.reply_to_message!.message_id
-  );
+  const previousMessage = await MessageRepository.findByTelegramMessageId(msg.reply_to_message!.message_id)
 
   if (!previousMessage || !previousMessage.context) {
-    await TelegramService.sendMessage(
-      msg.from.id,
-      'Não foi possível encontrar o contexto desta mensagem.'
-    );
-    return;
+    await TelegramService.sendMessage(msg.from.id, 'Não foi possível encontrar o contexto desta mensagem.')
+    return
   }
 
-  const context = previousMessage.context;
-  let content = msg.text || '';
-  let imageUrl: string | undefined;
+  const context = previousMessage.context
+  let content = msg.text || ''
+  let imageUrl: string | undefined
 
   if (msg.photo) {
-    const photo = msg.photo[msg.photo.length - 1]; // Pega a maior resolução
-    imageUrl = await TelegramService.getFile(photo.file_id);
-    content = msg.caption || 'Por favor, analise esta imagem';
+    const photo = msg.photo[msg.photo.length - 1] // Pega a maior resolução
+    imageUrl = await TelegramService.getFile(photo.file_id)
+    content = msg.caption || 'Por favor, analise esta imagem'
   }
 
   // Salva a mensagem do usuário
@@ -73,22 +74,24 @@ async function handleReplyMessage(msg: TelegramMessage) {
     role: 'user',
     imageUrl,
     replyToId: previousMessage.id,
-    telegramMessageId: msg.messageId,
-  });
+    telegramMessageId: msg.messageId
+  })
 
   // Busca o histórico completo de mensagens mantendo o contexto da conversa
-  const { messages: historyMessages, modelName } = await MessageRepository.getMessageHistory(previousMessage.id);
-  
+  const { messages: historyMessages, modelName } = await MessageRepository.getMessageHistory(
+    previousMessage.id
+  )
+
   // Converte as mensagens para o formato do OpenRouter
   const messages: OpenRouterMessage[] = historyMessages.map((m: Message) => ({
     role: m.role,
     content: m.imageUrl
       ? [
           { type: 'text', text: m.content },
-          { type: 'image_url', image_url: m.imageUrl },
+          { type: 'image_url', image_url: m.imageUrl }
         ]
-      : m.content,
-  }));
+      : m.content
+  }))
 
   // Adiciona a mensagem atual ao final do contexto
   messages.push({
@@ -96,54 +99,57 @@ async function handleReplyMessage(msg: TelegramMessage) {
     content: imageUrl
       ? [
           { type: 'text', text: content },
-          { type: 'image_url', image_url: imageUrl },
+          { type: 'image_url', image_url: imageUrl }
         ]
-      : content,
-  });
+      : content
+  })
 
   const response = imageUrl
     ? await OpenRouterService.vision(messages, modelName)
-    : await OpenRouterService.chat(messages, modelName);
+    : await OpenRouterService.chat(messages, modelName)
 
   // Envia a resposta e salva com o ID correto do Telegram
-  const sentMessage = await TelegramService.sendMessage(msg.from.id, response, msg.messageId);
-  
+  const sentMessage = await TelegramService.sendMessage(msg.from.id, response, {
+    replyToMessageId: msg.messageId
+  })
+
   // Salva a mensagem do bot com o ID correto
   await MessageRepository.create({
     contextId: context.id,
     content: response,
     role: 'assistant',
     replyToId: userMessage.id,
-    telegramMessageId: sentMessage.message_id,
-  });
+    telegramMessageId: sentMessage.message_id
+  })
 }
 
 async function handleNewContext(msg: TelegramMessage) {
-  const defaultModel = await ModelRepository.findDefault();
-  if (!defaultModel) {
+  const userId = msg.from.id.toString()
+  const userModel = await ModelRepository.getUserDefaultOrFirst(userId)
+  if (!userModel) {
     await TelegramService.sendMessage(
       msg.from.id,
-      'Nenhum modelo padrão configurado. Use /model para configurar um modelo.'
-    );
-    return;
+      'Nenhum modelo disponível. Por favor, contate um administrador.'
+    )
+    return
   }
 
   // Cria um novo contexto
-  const context = await ContextRepository.create(msg.from.id.toString(), defaultModel.id);
+  const context = await ContextRepository.create(userId, userModel.id)
 
-  // Notifica o usuário sobre o início de um novo contexto
+  // Notifica o usuário sobre o início de um novo contexto e o modelo sendo usado
   await TelegramService.sendMessage(
     msg.from.id,
-    '🔄 Iniciando um novo contexto de conversa. Para manter o contexto basta responder à mensagem sobre a qual deseja continuar conversando.'
-  );
+    `🔄 Iniciando um novo contexto de conversa usando o modelo *${userModel.name}*.\nPara manter o contexto basta responder à mensagem sobre a qual deseja continuar conversando.\nPara alterar o modelo, use o comando /model.`
+  )
 
-  let content = msg.text || '';
-  let imageUrl: string | undefined;
+  let content = msg.text || ''
+  let imageUrl: string | undefined
 
   if (msg.photo) {
-    const photo = msg.photo[msg.photo.length - 1]; // Pega a maior resolução
-    imageUrl = await TelegramService.getFile(photo.file_id);
-    content = msg.caption || 'Por favor, analise esta imagem';
+    const photo = msg.photo[msg.photo.length - 1] // Pega a maior resolução
+    imageUrl = await TelegramService.getFile(photo.file_id)
+    content = msg.caption || 'Por favor, analise esta imagem'
   }
 
   // Salva a mensagem do usuário
@@ -152,8 +158,8 @@ async function handleNewContext(msg: TelegramMessage) {
     content,
     role: 'user',
     imageUrl,
-    telegramMessageId: msg.messageId,
-  });
+    telegramMessageId: msg.messageId
+  })
 
   // Processa com o OpenRouter
   const messages: OpenRouterMessage[] = [
@@ -162,25 +168,27 @@ async function handleNewContext(msg: TelegramMessage) {
       content: imageUrl
         ? [
             { type: 'text', text: content },
-            { type: 'image_url', image_url: imageUrl },
+            { type: 'image_url', image_url: imageUrl }
           ]
-        : content,
-    },
-  ];
+        : content
+    }
+  ]
 
   const response = imageUrl
-    ? await OpenRouterService.vision(messages, defaultModel.name)
-    : await OpenRouterService.chat(messages, defaultModel.name);
+    ? await OpenRouterService.vision(messages, userModel.name)
+    : await OpenRouterService.chat(messages, userModel.name)
 
   // Envia a resposta e salva com o ID correto do Telegram
-  const sentMessage = await TelegramService.sendMessage(msg.from.id, response, msg.messageId);
-  
+  const sentMessage = await TelegramService.sendMessage(msg.from.id, response, {
+    replyToMessageId: msg.messageId
+  })
+
   // Salva a mensagem do bot com o ID correto
   await MessageRepository.create({
     contextId: context.id,
     content: response,
     role: 'assistant',
     replyToId: userMessage.id,
-    telegramMessageId: sentMessage.message_id,
-  });
+    telegramMessageId: sentMessage.message_id
+  })
 }

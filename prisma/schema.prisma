@@ -10,21 +10,23 @@ datasource db {
 }
 
 model User {
-  id         String    @id
-  username   String?
-  authorized Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  contexts   Context[]
+  id             String    @id
+  username       String?
+  authorized     Boolean   @default(false)
+  defaultModelId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  contexts       Context[]
+  defaultModel   Model?    @relation("UserDefaultModel", fields: [defaultModelId], references: [id])
 }
 
 model Model {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  isDefault   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  contexts    Context[]
+  id              String    @id @default(cuid())
+  name            String    @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  contexts        Context[]
+  defaultForUsers User[]    @relation("UserDefaultModel")
 }
 
 model Context {
@@ -42,10 +44,10 @@ model Message {
   id                String    @id @default(cuid())
   contextId         String
   content           String
-  role              String    // 'user' or 'assistant'
-  imageUrl          String?   // URL da imagem, se houver
-  replyToId         String?   // ID da mensagem à qual esta é uma resposta
-  telegramMessageId Int?      // ID da mensagem no Telegram
+  role              String // 'user' or 'assistant'
+  imageUrl          String? // URL da imagem, se houver
+  replyToId         String? // ID da mensagem à qual esta é uma resposta
+  telegramMessageId Int? // ID da mensagem no Telegram
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   context           Context   @relation(fields: [contextId], references: [id])
