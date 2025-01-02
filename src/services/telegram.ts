@@ -3,32 +3,56 @@ import { config } from '../config'
 import { TelegramMessage, TelegramSentMessage } from '../types'
 
 const sanitizeMarkdown = (text: string): string => {
-  // Array to store positions of special characters
-  const specialChars = new Map<string, number[]>()
-  const chars = ['*', '_', '`']
+  // Characters that need to be properly closed
+  const closableChars = ['*', '_', '`', '[', '(', '{']
 
-  // Find all positions of special characters
+  // Find all unclosed special characters
+  const unclosedChars = new Set<string>()
+  const stack: string[] = []
+
   for (let i = 0; i < text.length; i++) {
     const char = text[i]
-    if (chars.includes(char)) {
-      if (!specialChars.has(char)) {
-        specialChars.set(char, [])
+
+    // Skip escaped characters
+    if (i > 0 && text[i - 1] === '\\') continue
+
+    if (closableChars.includes(char)) {
+      // Check if it's an opening or closing character
+      if (char === '[' || char === '(' || char === '{') {
+        stack.push(char)
+      } else if (char === ']' || char === ')' || char === '}') {
+        const lastOpen = stack.pop()
+        // If closing character doesn't match last opening, mark as unclosed
+        if (
+          (lastOpen === '[' && char !== ']') ||
+          (lastOpen === '(' && char !== ')') ||
+          (lastOpen === '{' && char !== '}')
+        ) {
+          unclosedChars.add(lastOpen || char)
+        }
+      } else {
+        // For *, _, ` - toggle between open/closed state
+        if (stack.length > 0 && stack[stack.length - 1] === char) {
+          stack.pop()
+        } else {
+          stack.push(char)
+        }
       }
-      specialChars.get(char)?.push(i)
     }
   }
 
-  // Process each special character
+  // Add any remaining unclosed characters to the set
+  stack.forEach((char) => unclosedChars.add(char))
+
+  // Escape unclosed special characters
   let sanitizedText = text
-  specialChars.forEach((positions, char) => {
-    // If we have an odd count of a special character, add one at the end
-    if (positions.length % 2 !== 0) {
-      sanitizedText = sanitizedText + char
-    }
+  unclosedChars.forEach((char) => {
+    const regex = new RegExp(`(?<!\\\\)\\${char}`, 'g')
+    sanitizedText = sanitizedText.replace(regex, `\\${char}`)
   })
 
   // Handle code blocks (```)
-  const codeBlockCount = (text.match(/```/g) || []).length
+  const codeBlockCount = (sanitizedText.match(/```/g) || []).length
   if (codeBlockCount % 2 !== 0) {
     sanitizedText = sanitizedText + '```'
   }
