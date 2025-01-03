@@ -16,7 +16,8 @@
   "dependencies": {
     "@prisma/client": "^6.1.0",
     "dotenv": "^16.3.1",
-    "node-telegram-bot-api": "^0.64.0"
+    "node-telegram-bot-api": "^0.66.0",
+    "telegramify-markdown": "^1.2.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",

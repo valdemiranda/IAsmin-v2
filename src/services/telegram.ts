@@ -1,34 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { config } from '../config'
 import { TelegramMessage, TelegramSentMessage } from '../types'
-
-/**
- * Sanitizes text for Telegram's MarkdownV2 format
- * Escapes special characters according to Telegram's specifications
- * @param text - The text to be sanitized
- * @returns The sanitized text safe for MarkdownV2 format
- */
-const sanitizeMarkdown = (text: string): string => {
-  // Conforme documentação do Telegram, estes são os caracteres que devem ser escapados
-  // em "posição normal": _ * [ ] ( ) ~ ` > # + - = | { } . !
-  // O caractere '\' em si também deve ser escapado (\\).
-  //
-  // Aqui, vamos RETIRAR da regex os que desejamos manter:
-  //   - `*` (bold)
-  //   - `_` (italic/underline)
-  //   - `` ` `` (code)
-  //   - `~` (strikethrough)
-  //   - `|` (spoiler)
-  //
-  // Ou seja, escaparemos somente:
-  //   [ ] ( ) > # + - = { } . ! e a barra invertida "\"
-  //
-  // Observação: se você quiser realmente escapar '_' ou '*', é só incluí-los na classe da regex.
-  // Se quiser retirar mais, basta removê-los do grupo abaixo.
-  const regex = /([\[\]\(\)>#\+\-=\{\}\.!\\])/g
-
-  return text.replace(regex, '\\$1')
-}
+import sanitizeTelegramMarkdownV2 from 'telegramify-markdown'
 
 const bot = new TelegramBot(config.telegram.token, { polling: true })
 
@@ -44,7 +17,7 @@ export const TelegramService = {
     }
   ): Promise<TelegramSentMessage> => {
     try {
-      const sanitizedText = sanitizeMarkdown(text)
+      const sanitizedText = sanitizeTelegramMarkdownV2(text, 'keep')
       const sentMessage = await bot.sendMessage(chatId, sanitizedText, {
         reply_to_message_id: options?.replyToMessageId,
         parse_mode: 'MarkdownV2',

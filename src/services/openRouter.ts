@@ -27,8 +27,8 @@ const addSystemInstructions = (messages: OpenRouterMessage[], model: string): Op
 const formatResponse = (content: string | undefined, finishReason: string | undefined): string => {
   if (!content) return 'Desculpe, não consegui processar sua mensagem.'
 
-  if (finishReason === 'length') {
-    return `${content} *(...)*`
+  if (finishReason?.toLocaleLowerCase() !== 'stop') {
+    return `${content} **(...)**`
   }
 
   return content
