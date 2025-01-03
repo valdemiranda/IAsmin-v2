@@ -2,62 +2,32 @@ import TelegramBot from 'node-telegram-bot-api'
 import { config } from '../config'
 import { TelegramMessage, TelegramSentMessage } from '../types'
 
+/**
+ * Sanitizes text for Telegram's MarkdownV2 format
+ * Escapes special characters according to Telegram's specifications
+ * @param text - The text to be sanitized
+ * @returns The sanitized text safe for MarkdownV2 format
+ */
 const sanitizeMarkdown = (text: string): string => {
-  // Characters that need to be properly closed
-  const closableChars = ['*', '_', '`', '[', '(', '{']
+  // Conforme documentação do Telegram, estes são os caracteres que devem ser escapados
+  // em "posição normal": _ * [ ] ( ) ~ ` > # + - = | { } . !
+  // O caractere '\' em si também deve ser escapado (\\).
+  //
+  // Aqui, vamos RETIRAR da regex os que desejamos manter:
+  //   - `*` (bold)
+  //   - `_` (italic/underline)
+  //   - `` ` `` (code)
+  //   - `~` (strikethrough)
+  //   - `|` (spoiler)
+  //
+  // Ou seja, escaparemos somente:
+  //   [ ] ( ) > # + - = { } . ! e a barra invertida "\"
+  //
+  // Observação: se você quiser realmente escapar '_' ou '*', é só incluí-los na classe da regex.
+  // Se quiser retirar mais, basta removê-los do grupo abaixo.
+  const regex = /([\[\]\(\)>#\+\-=\{\}\.!\\])/g
 
-  // Find all unclosed special characters
-  const unclosedChars = new Set<string>()
-  const stack: string[] = []
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-
-    // Skip escaped characters
-    if (i > 0 && text[i - 1] === '\\') continue
-
-    if (closableChars.includes(char)) {
-      // Check if it's an opening or closing character
-      if (char === '[' || char === '(' || char === '{') {
-        stack.push(char)
-      } else if (char === ']' || char === ')' || char === '}') {
-        const lastOpen = stack.pop()
-        // If closing character doesn't match last opening, mark as unclosed
-        if (
-          (lastOpen === '[' && char !== ']') ||
-          (lastOpen === '(' && char !== ')') ||
-          (lastOpen === '{' && char !== '}')
-        ) {
-          unclosedChars.add(lastOpen || char)
-        }
-      } else {
-        // For *, _, ` - toggle between open/closed state
-        if (stack.length > 0 && stack[stack.length - 1] === char) {
-          stack.pop()
-        } else {
-          stack.push(char)
-        }
-      }
-    }
-  }
-
-  // Add any remaining unclosed characters to the set
-  stack.forEach((char) => unclosedChars.add(char))
-
-  // Escape unclosed special characters
-  let sanitizedText = text
-  unclosedChars.forEach((char) => {
-    const regex = new RegExp(`(?<!\\\\)\\${char}`, 'g')
-    sanitizedText = sanitizedText.replace(regex, `\\${char}`)
-  })
-
-  // Handle code blocks (```)
-  const codeBlockCount = (sanitizedText.match(/```/g) || []).length
-  if (codeBlockCount % 2 !== 0) {
-    sanitizedText = sanitizedText + '```'
-  }
-
-  return sanitizedText
+  return text.replace(regex, '\\$1')
 }
 
 const bot = new TelegramBot(config.telegram.token, { polling: true })
@@ -77,7 +47,7 @@ export const TelegramService = {
       const sanitizedText = sanitizeMarkdown(text)
       const sentMessage = await bot.sendMessage(chatId, sanitizedText, {
         reply_to_message_id: options?.replyToMessageId,
-        parse_mode: 'Markdown',
+        parse_mode: 'MarkdownV2',
         reply_markup: options?.inlineKeyboard
           ? {
               inline_keyboard: options.inlineKeyboard

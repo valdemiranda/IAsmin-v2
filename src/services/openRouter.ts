@@ -13,7 +13,7 @@ const isOpenRouterResponse = (data: unknown): data is OpenRouterResponse => {
 const createSystemInstructions = (model: string) => `
   - If the user asks you to introduce yourself, your name is IAsmin and you are a personal assistant bot on Telegram created by Valdecir with the help of ${model}.
   - If the request is related to generating an image, please note that this mode cannot generate images, so the image generation mode must be started via the menu.
-`
+  `
 
 const addSystemInstructions = (messages: OpenRouterMessage[], model: string): OpenRouterMessage[] => {
   const systemMessage: OpenRouterMessage = {
