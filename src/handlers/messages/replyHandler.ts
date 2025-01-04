@@ -49,7 +49,7 @@ async function handleImageReply(
     .concat(content)
     .join(';\n')
 
-  await TelegramService.sendMessage(msg.from.id, '🎨 Gerando sua imagem, por favor aguarde...', {
+  await TelegramService.sendMessage(msg.from.id, '🎨 Desenhando...', {
     replyToMessageId: msg.messageId
   })
 

@@ -45,8 +45,8 @@ async function sendContextStartMessage(userId: number, modelName: string): Promi
   await TelegramService.sendMessage(
     userId,
     `🔄 Iniciando um novo contexto de conversa usando o modelo *${modelName}*.\n` +
-      'Para manter o contexto basta responder à mensagem sobre a qual deseja continuar conversando.\n' +
-      'Para alterar o modelo, use o comando /model.'
+      'Para alterar o modelo, use o comando /model.\n' +
+      'Para manter o contexto basta responder à mensagem sobre a qual deseja continuar conversando.'
   )
 }
 
@@ -57,16 +57,15 @@ async function handleImageContext(
   userMessageId: string,
   content: string
 ): Promise<void> {
-  const waitMessage = await TelegramService.sendMessage(
-    msg.from.id,
-    '🎨 Gerando sua imagem, por favor aguarde...',
-    { replyToMessageId: msg.messageId }
-  )
+  const waitMessage = await TelegramService.sendMessage(msg.from.id, '🎨 Desenhando...', {
+    replyToMessageId: msg.messageId
+  })
 
   const imageUrl = await OpenAIService.generateImage(content)
   await TelegramService.bot.deleteMessage(msg.from.id, waitMessage.message_id)
 
-  const response = 'Aqui está a imagem gerada com base na sua descrição.'
+  const response =
+    'Aqui está a imagem gerada com base nas suas instruções. Se quiser outra imagem com base no mesmo contexto, basta responder à esta mensagem com instruções adicionais.'
   const sentMessage = await TelegramService.sendPhoto(msg.from.id, imageUrl, {
     caption: response,
     replyToMessageId: msg.messageId
