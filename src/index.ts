@@ -1,6 +1,6 @@
 import { TelegramService } from './services/telegram'
 import { commands } from './handlers/commands'
-import { MessageHandler } from './handlers/messages'
+import { MessageHandler } from './handlers/messages/index'
 import { initializeDatabase } from './database/initialize'
 
 async function setupBot() {
@@ -20,7 +20,7 @@ async function setupBot() {
           await handler({
             messageId: msg.message_id,
             from: {
-              id: msg.from?.id.toString() || '',
+              id: msg.from?.id || 0,
               username: msg.from?.username
             },
             text: msg.text

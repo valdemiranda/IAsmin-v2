@@ -1,6 +1,6 @@
 import { TelegramMessage } from '../types'
 import { TelegramService } from '../services/telegram'
-import { ModelRepository, UserRepository } from '../repositories'
+import { ContextRepository, MessageRepository, ModelRepository, UserRepository } from '../repositories'
 
 export const startCommand = {
   command: 'start',
@@ -143,10 +143,12 @@ Comandos disponíveis:
 /start - Iniciar o bot e registrar usuário
 /model - Escolher ou visualizar o modelo atual
 /help - Mostrar esta mensagem de ajuda
+/generate - Iniciar geração de imagem com DALL-E
 
 Para conversar, simplesmente envie uma mensagem.
 Para continuar um contexto, responda a uma mensagem anterior.
 Para incluir uma imagem na conversa, envie a imagem com uma descrição.
+Para gerar uma imagem, use /generate e descreva a imagem desejada.
 
 Seu ID: ${msg.from.id}
     `.trim()
@@ -155,4 +157,51 @@ Seu ID: ${msg.from.id}
   }
 }
 
-export const commands = [startCommand, modelCommand, helpCommand]
+export const generateCommand = {
+  command: 'generate',
+  description: 'Iniciar geração de imagem',
+  handler: async (msg: TelegramMessage) => {
+    try {
+      const userId = msg.from.id.toString()
+      const isAuthorized = await UserRepository.isAuthorized(userId)
+
+      if (!isAuthorized) {
+        await TelegramService.sendMessage(userId, 'Você ainda não está autorizado a usar este comando.')
+        return
+      }
+
+      const userModel = await ModelRepository.getUserDefaultOrFirst(userId)
+      if (!userModel) {
+        await TelegramService.sendMessage(
+          userId,
+          'Nenhum modelo disponível. Por favor, contate um administrador.'
+        )
+        return
+      }
+
+      // Cria um novo contexto do tipo 'image' que será usado para rastrear a conversa de geração de imagem
+      const context = await ContextRepository.create(userId, userModel.id, 'image')
+
+      // Envia a mensagem e salva no banco para manter o contexto
+      const msgResp =
+        '🎨 Iniciando contexto de geração de imagem.\nDescreva a imagem que você gostaria que eu gerasse em resposta à esta mensagem.'
+      const sentMessage = await TelegramService.sendMessage(userId, msgResp)
+
+      // Salva a mensagem do bot no banco para permitir que o usuário responda a ela
+      await MessageRepository.create({
+        contextId: context.id,
+        content: msgResp,
+        role: 'assistant',
+        telegramMessageId: sentMessage.message_id
+      })
+    } catch (error) {
+      console.error('Erro ao processar comando /generate:', error)
+      await TelegramService.sendMessage(
+        msg.from.id,
+        'Desculpe, ocorreu um erro ao iniciar o contexto de geração de imagem.'
+      )
+    }
+  }
+}
+
+export const commands = [startCommand, modelCommand, helpCommand, generateCommand]

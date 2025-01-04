@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { config } from '../config'
-import { TelegramMessage, TelegramSentMessage } from '../types'
+import { TelegramMessage, TelegramSentMessage, TelegramPhotoOptions } from '../types'
 import sanitizeTelegramMarkdownV2 from 'telegramify-markdown'
 
 const bot = new TelegramBot(config.telegram.token, { polling: true })
@@ -66,7 +66,7 @@ export const TelegramService = {
         const formattedMsg: TelegramMessage = {
           messageId: msg.message_id,
           from: {
-            id: msg.from?.id.toString() || '',
+            id: msg.from?.id || 0,
             username: msg.from?.username
           },
           caption: msg.caption,
@@ -98,5 +98,30 @@ export const TelegramService = {
         })
       }
     })
+  },
+
+  sendPhoto: async (
+    chatId: number | string,
+    photoUrl: string,
+    options?: TelegramPhotoOptions
+  ): Promise<TelegramSentMessage> => {
+    try {
+      const sentMessage = await bot.sendPhoto(chatId, photoUrl, {
+        caption: options?.caption ? sanitizeTelegramMarkdownV2(options.caption, 'keep') : undefined,
+        reply_to_message_id: options?.replyToMessageId,
+        parse_mode: 'MarkdownV2'
+      })
+
+      return {
+        message_id: sentMessage.message_id,
+        chat: {
+          id: typeof sentMessage.chat.id === 'string' ? parseInt(sentMessage.chat.id) : sentMessage.chat.id
+        },
+        text: sentMessage.caption
+      }
+    } catch (error) {
+      console.error('Telegram send photo error:', error)
+      throw new Error('Erro ao enviar foto no Telegram')
+    }
   }
 }

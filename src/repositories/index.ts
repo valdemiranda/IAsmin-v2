@@ -97,11 +97,12 @@ export const ModelRepository = {
 }
 
 export const ContextRepository = {
-  create: async (userId: string, modelId: string) => {
+  create: async (userId: string, modelId: string, type: string = 'chat') => {
     return await prisma.context.create({
-      data: { userId, modelId },
+      data: { userId, modelId, type },
       include: {
-        messages: true
+        messages: true,
+        model: true
       }
     })
   },
@@ -147,6 +148,13 @@ export const MessageRepository = {
           }
         }
       }
+    })
+  },
+
+  findByContextId: async (contextId: string) => {
+    return await prisma.message.findMany({
+      where: { contextId },
+      orderBy: { createdAt: 'asc' }
     })
   },
 
