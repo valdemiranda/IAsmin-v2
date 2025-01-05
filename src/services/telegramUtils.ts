@@ -18,7 +18,7 @@ export async function handleTelegramError(
  * Common message sanitizer
  */
 export function sanitizeMessage(text: string): string {
-  return sanitizeTelegramMarkdownV2(text, 'keep')
+  return sanitizeTelegramMarkdownV2(text, 'escape')
 }
 
 /**
