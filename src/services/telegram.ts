@@ -1,7 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { config } from '../config'
 import { TelegramMessage, TelegramSentMessage, TelegramPhotoOptions } from '../types'
-import sanitizeTelegramMarkdownV2 from 'telegramify-markdown'
+import { handleTelegramError, sanitizeMessage, formatSentMessage, buildMessageOptions } from './telegramUtils'
 
 const bot = new TelegramBot(config.telegram.token, { polling: true })
 
@@ -17,27 +17,12 @@ export const TelegramService = {
     }
   ): Promise<TelegramSentMessage> => {
     try {
-      const sanitizedText = sanitizeTelegramMarkdownV2(text, 'keep')
-      const sentMessage = await bot.sendMessage(chatId, sanitizedText, {
-        reply_to_message_id: options?.replyToMessageId,
-        parse_mode: 'MarkdownV2',
-        reply_markup: options?.inlineKeyboard
-          ? {
-              inline_keyboard: options.inlineKeyboard
-            }
-          : undefined
-      })
-
-      return {
-        message_id: sentMessage.message_id,
-        chat: {
-          id: typeof sentMessage.chat.id === 'string' ? parseInt(sentMessage.chat.id) : sentMessage.chat.id
-        },
-        text: sentMessage.text
-      }
+      const sanitizedText = sanitizeMessage(text)
+      const messageOptions = buildMessageOptions(options)
+      const sentMessage = await bot.sendMessage(chatId, sanitizedText, messageOptions)
+      return formatSentMessage(sentMessage)
     } catch (error) {
-      console.error('Telegram send message error:', error)
-      throw new Error('Erro ao enviar mensagem no Telegram')
+      return handleTelegramError('send message', error, 'Erro ao enviar mensagem no Telegram')
     }
   },
 
@@ -46,8 +31,7 @@ export const TelegramService = {
       const file = await bot.getFile(fileId)
       return `https://api.telegram.org/file/bot${config.telegram.token}/${file.file_path}`
     } catch (error) {
-      console.error('Telegram get file error:', error)
-      throw new Error('Erro ao obter arquivo do Telegram')
+      return handleTelegramError('get file', error, 'Erro ao obter arquivo do Telegram')
     }
   },
 
@@ -55,8 +39,7 @@ export const TelegramService = {
     try {
       await bot.setMyCommands(commands)
     } catch (error) {
-      console.error('Telegram set commands error:', error)
-      throw new Error('Erro ao configurar comandos do bot')
+      return handleTelegramError('set commands', error, 'Erro ao configurar comandos do bot')
     }
   },
 
@@ -106,22 +89,11 @@ export const TelegramService = {
     options?: TelegramPhotoOptions
   ): Promise<TelegramSentMessage> => {
     try {
-      const sentMessage = await bot.sendPhoto(chatId, photoUrl, {
-        caption: options?.caption ? sanitizeTelegramMarkdownV2(options.caption, 'keep') : undefined,
-        reply_to_message_id: options?.replyToMessageId,
-        parse_mode: 'MarkdownV2'
-      })
-
-      return {
-        message_id: sentMessage.message_id,
-        chat: {
-          id: typeof sentMessage.chat.id === 'string' ? parseInt(sentMessage.chat.id) : sentMessage.chat.id
-        },
-        text: sentMessage.caption
-      }
+      const messageOptions = buildMessageOptions(options)
+      const sentMessage = await bot.sendPhoto(chatId, photoUrl, messageOptions)
+      return formatSentMessage(sentMessage)
     } catch (error) {
-      console.error('Telegram send photo error:', error)
-      throw new Error('Erro ao enviar foto no Telegram')
+      return handleTelegramError('send photo', error, 'Erro ao enviar foto no Telegram')
     }
   }
 }

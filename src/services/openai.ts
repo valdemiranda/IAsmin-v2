@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { handleAIError } from './aiUtils'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -27,8 +28,12 @@ export const OpenAIService = {
       }
       return response.data[0].url
     } catch (error) {
-      console.error('Error generating image:', error)
-      throw new Error('Falha ao gerar imagem. Por favor, tente novamente.')
+      return handleAIError(
+        'OpenAI',
+        'generate image',
+        error,
+        'Falha ao gerar imagem. Por favor, tente novamente.'
+      )
     }
   }
 }

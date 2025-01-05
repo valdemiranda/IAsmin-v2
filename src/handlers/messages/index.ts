@@ -20,7 +20,7 @@ export const MessageHandler = {
 
       // Ensure user is registered
       const userId = msg.from.id.toString()
-      const user = await UserRepository.findOrCreate(userId, msg.from.username)
+      const user = await UserRepository.findOrCreate({ id: userId, username: msg.from.username })
 
       if (!user.authorized) {
         await TelegramService.sendMessage(
