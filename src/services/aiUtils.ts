@@ -93,7 +93,7 @@ export async function makeOpenRouterRequest(
       model,
       messages: addSystemInstructions(messages, model),
       stream: false,
-      max_tokens: 1000
+      max_tokens: 900
     })
 
     const response = await fetch(`${baseUrl}/chat/completions`, options)
