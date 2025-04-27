@@ -59,7 +59,15 @@ export const TelegramService = {
             ? {
                 message_id: msg.reply_to_message.message_id
               }
-            : undefined
+            : undefined,
+          document:
+            msg.document && msg.document.file_id
+              ? {
+                  file_id: msg.document.file_id,
+                  file_name: msg.document.file_name || 'document.pdf',
+                  mime_type: msg.document.mime_type || 'application/pdf'
+                }
+              : undefined
         }
 
         await callback(formattedMsg)
@@ -94,6 +102,20 @@ export const TelegramService = {
       return formatSentMessage(sentMessage)
     } catch (error) {
       return handleTelegramError('send photo', error, 'Erro ao enviar foto no Telegram')
+    }
+  },
+
+  sendPhotoBuffer: async (
+    chatId: number | string,
+    photoBuffer: Buffer,
+    options?: TelegramPhotoOptions
+  ): Promise<TelegramSentMessage> => {
+    try {
+      const messageOptions = buildMessageOptions(options)
+      const sentMessage = await bot.sendPhoto(chatId, photoBuffer, messageOptions)
+      return formatSentMessage(sentMessage)
+    } catch (error) {
+      return handleTelegramError('send photo buffer', error, 'Erro ao enviar foto no Telegram')
     }
   }
 }

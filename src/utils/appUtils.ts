@@ -45,7 +45,17 @@ function mapToTelegramMessage(msg: any): TelegramMessage {
       id: msg.from?.id || 0,
       username: msg.from?.username
     },
-    text: msg.text
+    text: msg.text,
+    caption: msg.caption,
+    photo: msg.photo,
+    reply_to_message: msg.reply_to_message ? { message_id: msg.reply_to_message.message_id } : undefined,
+    document: msg.document
+      ? {
+          file_id: msg.document.file_id,
+          file_name: msg.document.file_name,
+          mime_type: msg.document.mime_type
+        }
+      : undefined
   }
 }
 

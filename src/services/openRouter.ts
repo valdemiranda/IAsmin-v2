@@ -15,5 +15,21 @@ export const OpenRouterService = {
       model,
       'vision'
     )
+  },
+
+  /**
+   * Process PDF documents using the OpenRouter API
+   * @param messages OpenRouter formatted messages, including PDF file content
+   * @param model Model to use for processing
+   * @returns Promise with the AI response
+   */
+  document: async (messages: OpenRouterMessage[], model: string): Promise<string> => {
+    return makeOpenRouterRequest(
+      config.openRouter.baseUrl,
+      config.openRouter.apiKey,
+      messages,
+      model,
+      'document'
+    )
   }
 }

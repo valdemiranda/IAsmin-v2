@@ -8,6 +8,7 @@ export type MessageCreateData = {
   content: string
   role: string
   imageUrl?: string
+  pdfUrl?: string
   replyToId?: string
   telegramMessageId?: number
 }

@@ -10,23 +10,25 @@ export const OpenAIService = {
   /**
    * Generates an image using DALL-E 3
    * @param prompt Text prompt for image generation
-   * @returns URL of the generated image
+   * @returns Base64 encoded string of the generated image
    */
   generateImage: async (prompt: string): Promise<string> => {
     try {
       const response = await openai.images.generate({
-        model: 'dall-e-3',
+        model: 'gpt-image-1',
+        moderation: 'low',
+        output_format: 'png',
         prompt,
         n: 1,
         size: '1024x1024',
-        quality: 'hd',
-        response_format: 'url'
+        quality: 'high'
+        // response_format: 'b64_json'
       })
 
-      if (!response.data[0].url) {
-        throw new Error('URL da imagem não encontrada na resposta')
+      if (!response.data || !response.data[0] || !response.data[0].b64_json) {
+        throw new Error('Dados base64 da imagem não encontrados na resposta')
       }
-      return response.data[0].url
+      return response.data[0].b64_json
     } catch (error) {
       return handleAIError(
         'OpenAI',

@@ -30,15 +30,24 @@ export function isOpenRouterResponse(data: unknown): data is OpenRouterResponse 
  */
 export function formatOpenRouterResponse(
   content: string | undefined,
-  finishReason: string | undefined
+  finishReason: string | undefined,
+  annotations?: any[]
 ): string {
   if (!content) return 'Desculpe, não consegui processar sua mensagem.'
 
-  if (finishReason?.toLocaleLowerCase() !== 'stop') {
-    return `${content} **(...)**`
+  // Adiciona informação sobre anotações se disponíveis
+  let formattedContent = content
+
+  if (annotations && annotations.length > 0) {
+    const annotationsCount = annotations.length
+    formattedContent = `${formattedContent}\n\n(${annotationsCount} anotações foram feitas no documento)`
   }
 
-  return content
+  if (finishReason?.toLocaleLowerCase() !== 'stop') {
+    return `${formattedContent} **(...)**`
+  }
+
+  return formattedContent
 }
 
 /**
@@ -108,7 +117,8 @@ export async function makeOpenRouterRequest(
     }
 
     const choice = data.choices[0]
-    return formatOpenRouterResponse(choice?.message?.content, choice?.finish_reason)
+    const annotations = choice?.message?.annotations
+    return formatOpenRouterResponse(choice?.message?.content, choice?.finish_reason, annotations)
   } catch (error) {
     return handleAIError(
       'OpenRouter',

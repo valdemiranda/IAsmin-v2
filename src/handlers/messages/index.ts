@@ -13,8 +13,17 @@ export const MessageHandler = {
         return
       }
 
-      // Ignore empty messages
-      if (!msg.text && !msg.photo) {
+      // Ignore empty messages with no content
+      if (!msg.text && !msg.photo && !msg.document) {
+        return
+      }
+
+      // Ignore non-PDF documents
+      if (msg.document && msg.document.mime_type !== 'application/pdf') {
+        await TelegramService.sendMessage(
+          msg.from.id,
+          'Desculpe, no momento só consigo processar arquivos no formato PDF.'
+        )
         return
       }
 

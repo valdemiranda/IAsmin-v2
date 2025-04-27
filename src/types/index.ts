@@ -24,6 +24,11 @@ export interface TelegramMessage {
   caption?: string
   photo?: TelegramPhoto[]
   reply_to_message?: TelegramReplyMessage
+  document?: {
+    file_id: string
+    file_name: string
+    mime_type: string
+  }
 }
 
 /**
@@ -49,9 +54,13 @@ export interface TelegramPhotoOptions {
 export type OpenRouterRole = 'user' | 'assistant' | 'system'
 
 export interface OpenRouterContentPart {
-  type: 'text' | 'image_url'
+  type: 'text' | 'image_url' | 'file'
   text?: string
   image_url?: string
+  file?: {
+    filename: string
+    file_data: string
+  }
 }
 
 /**
@@ -70,6 +79,7 @@ export interface OpenRouterResponse {
     message: {
       content: string
       role: OpenRouterRole
+      annotations?: any[]
     }
     finish_reason: string
   }>
@@ -97,6 +107,6 @@ export interface MessageHandler {
  * Extends Prisma's Context type with additional properties
  */
 export interface ContextWithType extends Context {
-  type: 'chat' | 'image'
+  type: 'chat' | 'image' | 'document'
   messages: Message[]
 }

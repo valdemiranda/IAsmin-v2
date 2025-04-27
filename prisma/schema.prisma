@@ -47,6 +47,7 @@ model Message {
   content           String
   role              String // 'user' or 'assistant'
   imageUrl          String? // URL da imagem, se houver
+  pdfUrl            String? // URL do PDF, se houver
   replyToId         String? // ID da mensagem à qual esta é uma resposta
   telegramMessageId Int? // ID da mensagem no Telegram
   createdAt         DateTime  @default(now())
