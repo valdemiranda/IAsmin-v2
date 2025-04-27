@@ -3,6 +3,7 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "username" TEXT,
     "authorized" BOOLEAN NOT NULL DEFAULT false,
+    "defaultModelId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -13,7 +14,6 @@ CREATE TABLE "User" (
 CREATE TABLE "Model" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -25,6 +25,7 @@ CREATE TABLE "Context" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "modelId" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'chat',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -38,7 +39,9 @@ CREATE TABLE "Message" (
     "content" TEXT NOT NULL,
     "role" TEXT NOT NULL,
     "imageUrl" TEXT,
+    "pdfUrl" TEXT,
     "replyToId" TEXT,
+    "telegramMessageId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -47,6 +50,9 @@ CREATE TABLE "Message" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Model_name_key" ON "Model"("name");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_defaultModelId_fkey" FOREIGN KEY ("defaultModelId") REFERENCES "Model"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Context" ADD CONSTRAINT "Context_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
