@@ -9,8 +9,7 @@
     "build": "tsc",
     "start": "prisma db push && node dist/index.js",
     "dev": "ts-node-dev src/index.ts",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy"
+    "prisma:generate": "prisma generate"
   },
   "keywords": [],
   "author": "",
