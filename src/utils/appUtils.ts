@@ -1,7 +1,7 @@
 import { TelegramService } from '../services/telegram'
 import { commands } from '../handlers/commands'
 import { MessageHandler } from '../handlers/messages'
-import { initializeDatabase } from '../database/initialize'
+//import { initializeDatabase } from '../database/initialize'
 import { TelegramMessage } from '../types'
 import { prisma } from '../config'
 
@@ -110,8 +110,8 @@ async function cleanup(): Promise<void> {
  */
 export async function initializeApp(): Promise<void> {
   try {
-    console.log('Inicializando banco de dados...')
-    await initializeDatabase()
+    //    console.log('Inicializando banco de dados...')
+    //    await initializeDatabase()
 
     console.log('Configurando bot...')
     await setupBot()
