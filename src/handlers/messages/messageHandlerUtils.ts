@@ -5,6 +5,11 @@ import { OpenRouterService } from '../../services/openRouter'
 import { OpenAIService } from '../../services/openai'
 import { MessageRepository } from '../../repositories'
 import { MessageFormatUtils, MessageFormatError } from './messageFormatUtils'
+import {
+  downloadImage,
+  hasAssistantGeneratedImages,
+  getMostRecentAssistantImage
+} from '../../utils/imageUtils'
 
 // Common interface for message handling responses
 interface MessageHandlingResult {
@@ -38,30 +43,135 @@ export async function handleImageGeneration(
     replyToMessageId: msg.messageId
   })
 
-  // Generate image
-  const imageBase64 = await OpenAIService.generateImage(promptContent)
+  let imageBase64: string
+  let operationType: 'geração' | 'edição' = 'geração'
 
-  // Convert base64 to buffer
-  const imageBuffer = Buffer.from(imageBase64, 'base64')
+  try {
+    // Verificar se há imagens anteriores geradas pelo assistente
+    if (previousMessages && hasAssistantGeneratedImages(previousMessages)) {
+      // Obter a URL da imagem mais recente gerada pelo assistente
+      const mostRecentImageUrl = getMostRecentAssistantImage(previousMessages)
+
+      if (mostRecentImageUrl) {
+        // Baixar a imagem mais recente
+        const imageBuffer = await downloadImage(mostRecentImageUrl)
+
+        // Editar a imagem existente
+        imageBase64 = await OpenAIService.editImage(imageBuffer, promptContent)
+        operationType = 'edição'
+      } else {
+        // Gerar uma nova imagem se não conseguir obter a imagem anterior
+        imageBase64 = await OpenAIService.generateImage(promptContent)
+      }
+    } else {
+      // Gerar uma nova imagem se não houver imagens anteriores
+      imageBase64 = await OpenAIService.generateImage(promptContent)
+    }
+
+    // Convert base64 to buffer
+    const imageBuffer = Buffer.from(imageBase64, 'base64')
+
+    // Delete waiting message
+    await TelegramService.bot.deleteMessage(msg.from.id, waitMessage.message_id)
+
+    const response =
+      operationType === 'edição'
+        ? 'Aqui está a imagem editada com base nas suas instruções. Se quiser continuar editando, basta responder à esta mensagem com instruções adicionais.'
+        : 'Aqui está a imagem gerada com base nas suas instruções. Se quiser outra imagem com base no mesmo contexto, basta responder à esta mensagem com instruções adicionais.'
+
+    // Send response with image using buffer
+    const sentMessage = await TelegramService.sendPhotoBuffer(msg.from.id, imageBuffer, {
+      caption: response,
+      replyToMessageId: msg.messageId
+    })
+
+    // We construct a data URI for storage
+    const imageDataUri = `data:image/png;base64,${imageBase64}`
+
+    return {
+      content: response,
+      imageUrl: imageDataUri,
+      telegramMessageId: sentMessage.message_id
+    }
+  } catch (error) {
+    // Em caso de erro, remover a mensagem de espera e notificar o usuário
+    try {
+      await TelegramService.bot.deleteMessage(msg.from.id, waitMessage.message_id)
+    } catch (deleteError) {
+      console.error('Erro ao deletar mensagem de espera:', deleteError)
+    }
+
+    console.error(`Erro na ${operationType} de imagem:`, error)
+
+    const errorMessage = `Desculpe, ocorreu um erro na ${operationType} da imagem. Por favor, tente novamente.`
+    const sentMessage = await TelegramService.sendMessage(msg.from.id, errorMessage, {
+      replyToMessageId: msg.messageId
+    })
+
+    return {
+      content: errorMessage,
+      telegramMessageId: sentMessage.message_id
+    }
+  }
+}
+
+/**
+ * Common utility for handling image analysis in image contexts
+ * This function is used when a user sends an image in an image context
+ */
+export async function handleImageAnalysis(
+  msg: TelegramMessage,
+  _contextId: string,
+  _userMessageId: string,
+  content: string,
+  imageUrl: string,
+  modelName: string,
+  previousMessages?: Message[]
+): Promise<MessageHandlingResult> {
+  // Get all messages from the context to include all previous images
+  let messages: OpenRouterMessage[] = []
+
+  if (previousMessages && previousMessages.length > 0) {
+    try {
+      // Convert all previous messages to OpenRouter format to include all images
+      messages = MessageFormatUtils.convertToOpenRouterFormat(previousMessages)
+    } catch (error) {
+      if (error instanceof MessageFormatError) {
+        console.error(MessageFormatUtils.formatError(error))
+      }
+      throw error
+    }
+  }
+
+  // Add the current message with the new image
+  try {
+    messages.push(MessageFormatUtils.createOpenRouterMessage(content, imageUrl))
+  } catch (error) {
+    if (error instanceof MessageFormatError) {
+      console.error(MessageFormatUtils.formatError(error))
+    }
+    throw error
+  }
+
+  // Send waiting message
+  const waitMessage = await TelegramService.sendMessage(msg.from.id, '🔍 Analisando imagem...', {
+    replyToMessageId: msg.messageId
+  })
+
+  // Get response from vision service
+  const response = await OpenRouterService.vision(messages, modelName)
 
   // Delete waiting message
   await TelegramService.bot.deleteMessage(msg.from.id, waitMessage.message_id)
 
-  const response =
-    'Aqui está a imagem gerada com base nas suas instruções. Se quiser outra imagem com base no mesmo contexto, basta responder à esta mensagem com instruções adicionais.'
-
-  // Send response with image using buffer
-  const sentMessage = await TelegramService.sendPhotoBuffer(msg.from.id, imageBuffer, {
-    caption: response,
+  // Send response
+  const sentMessage = await TelegramService.sendMessage(msg.from.id, response, {
     replyToMessageId: msg.messageId
   })
 
-  // We construct a data URI for storage
-  const imageDataUri = `data:image/png;base64,${imageBase64}`
-
   return {
     content: response,
-    imageUrl: imageDataUri,
+    imageUrl: imageUrl,
     telegramMessageId: sentMessage.message_id
   }
 }

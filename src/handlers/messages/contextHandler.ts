@@ -4,6 +4,7 @@ import { ContextRepository, ModelRepository } from '../../repositories'
 import { MessageFormatUtils } from './messageFormatUtils'
 import {
   handleImageGeneration,
+  handleImageAnalysis,
   handleChatInteraction,
   handleDocumentInteraction,
   createMessage
@@ -50,15 +51,37 @@ export async function handleNewContext(msg: TelegramMessage): Promise<void> {
 
   // Handle context based on type
   if (contextType === 'image') {
-    const result = await handleImageGeneration(msg, context.id, userMessage.id, content)
-    await createMessage(
-      context.id,
-      result.content,
-      'assistant',
-      result.telegramMessageId,
-      userMessage.id,
-      result.imageUrl
-    )
+    // Se o contexto é de imagem e uma imagem foi enviada, usamos a função de análise de imagem
+    if (imageUrl) {
+      const result = await handleImageAnalysis(
+        msg,
+        context.id,
+        userMessage.id,
+        content,
+        imageUrl,
+        userModel.name
+      )
+
+      await createMessage(
+        context.id,
+        result.content,
+        'assistant',
+        result.telegramMessageId,
+        userMessage.id,
+        result.imageUrl
+      )
+    } else {
+      // Se não há imagem, usamos a geração de imagem normal
+      const result = await handleImageGeneration(msg, context.id, userMessage.id, content)
+      await createMessage(
+        context.id,
+        result.content,
+        'assistant',
+        result.telegramMessageId,
+        userMessage.id,
+        result.imageUrl
+      )
+    }
   } else if (contextType === 'document') {
     // Handle PDF document context
     const result = await handleDocumentInteraction(
@@ -104,7 +127,7 @@ async function sendContextStartMessage(
   let startMessage = `Iniciando nova conversa com ${modelName}.`
 
   if (contextType === 'image') {
-    startMessage = `Analisando imagem com ${modelName}.`
+    startMessage = `Iniciando contexto de imagem com ${modelName}. Você pode enviar imagens para análise, solicitar a geração de novas imagens ou editar imagens já geradas.`
   } else if (contextType === 'document') {
     startMessage = `Analisando documento PDF com ${modelName}.`
   }

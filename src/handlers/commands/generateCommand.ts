@@ -29,7 +29,7 @@ export const generateCommand = {
 
       // Sends the message and saves it to maintain context
       const msgResp =
-        '🎨 Iniciando contexto de geração de imagem.\nDescreva a imagem que você gostaria que eu gerasse em resposta à esta mensagem.'
+        '🎨 Iniciando contexto de imagem.\nVocê pode:\n- Descrever uma imagem que gostaria que eu gerasse\n- Responder a uma imagem gerada para editá-la com novas instruções\n- Enviar uma imagem para que eu a analise\n- Enviar várias imagens em sequência para análise contextual'
       const sentMessage = await TelegramService.sendMessage(userId, msgResp)
 
       // Saves the bot's message to the database
