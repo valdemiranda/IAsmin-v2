@@ -10,7 +10,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev src/index.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy"
+    "prisma:dbpush": "prisma db push"
   },
   "keywords": [],
   "author": "",
